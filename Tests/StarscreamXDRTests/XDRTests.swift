@@ -22,6 +22,16 @@ import Foundation
     try assertRoundTrip(string)
 }
 
+@Test func xdr_phase5_dataPadding_lengths0To5() throws {
+    for length in 0...5 {
+        let payload = Data((0..<length).map { UInt8($0) })
+        let xdr = try payload.toXDR()
+        let expectedPadding = (4 - (length % 4)) % 4
+        #expect(xdr.count == 4 + length + expectedPadding)
+        #expect(try Data(xdr: xdr) == payload)
+    }
+}
+
 @Test func xdr_streamA_arrayAndOptionalRoundTrip() throws {
     struct Int32List: XDRCodable, Sendable, Hashable {
         let values: [Int32]
@@ -126,6 +136,17 @@ private func assertRoundTrip<T: XDRCodable & Equatable>(_ value: T) throws {
 @Test func xdr_phase2_scval_roundTrip() throws {
     try assertRoundTrip(ScVal.u32(123))
     try assertRoundTrip(ScVal.string("hello"))
+}
+
+@Test func xdr_phase5_scValRepresentativeRoundTrip() throws {
+    try assertRoundTrip(ScVal.bool(true))
+    try assertRoundTrip(ScVal.i64(-7))
+    try assertRoundTrip(ScVal.bytes(Data([1, 2, 3, 4])))
+    try assertRoundTrip(ScVal.symbol("sym"))
+    try assertRoundTrip(ScVal.vec([.u32(1), .u32(2)]))
+    try assertRoundTrip(
+        ScVal.map([SCMapEntry(key: .string("k"), val: .i32(9))])
+    )
 }
 
 @Test func xdr_phase2_transaction_roundTrip() throws {

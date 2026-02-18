@@ -60,14 +60,76 @@ final class MacroTests: XCTestCase {
         )
     }
 
+    func testContractClientMacro_generatesStructAndEnumMembers() {
+        let spec = structAndEnumSpecBase64()
+
+        assertMacroExpansion(
+            """
+            @ContractClient(spec: "\(spec)")
+            struct ExampleClient {
+                let contractId: String
+                let server: SorobanServer
+                let network: Network
+            }
+            """,
+            expandedSource: """
+            struct ExampleClient {
+                let contractId: String
+                let server: SorobanServer
+                let network: Network
+
+                public struct Meta: Sendable, Hashable {
+                    public let decimals: UInt32
+
+                    public init(decimals: UInt32) {
+                        self.decimals = decimals
+                    }
+                }
+
+                public enum Err: UInt32, Sendable {
+                    case oops = 1
+                }
+            }
+            """,
+            macros: macros
+        )
+    }
+
     private func singleFunctionSpecBase64(functionName: String) -> String {
         var data = Data()
-        data.append(xdrUInt32(1))
-        data.append(xdrInt32(0))
-        data.append(xdrString(functionName))
-        data.append(xdrUInt32(0))
-        data.append(xdrUInt32(0))
+        data.append(xdrUInt32(1)) // spec entry count
+        data.append(functionEntry(functionName))
         return data.base64EncodedString()
+    }
+
+    private func structAndEnumSpecBase64() -> String {
+        var data = Data()
+        data.append(xdrUInt32(2))
+
+        // SCSpecEntry.udtStructV0
+        data.append(xdrInt32(1))
+        data.append(xdrString("Meta"))
+        data.append(xdrUInt32(1)) // one field
+        data.append(xdrString("decimals"))
+        data.append(xdrInt32(4)) // SC_SPEC_TYPE_U32
+
+        // SCSpecEntry.udtEnumV0
+        data.append(xdrInt32(3))
+        data.append(xdrString("Err"))
+        data.append(xdrUInt32(1))
+        data.append(xdrString("oops"))
+        data.append(xdrUInt32(1))
+
+        return data.base64EncodedString()
+    }
+
+    private func functionEntry(_ functionName: String) -> Data {
+        var data = Data()
+        data.append(xdrInt32(0)) // SCSpecEntry.functionV0
+        data.append(xdrString(functionName))
+        data.append(xdrUInt32(0)) // inputs
+        data.append(xdrUInt32(0)) // outputs
+        return data
     }
 
     private func xdrInt32(_ value: Int32) -> Data {

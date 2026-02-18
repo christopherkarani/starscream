@@ -13,11 +13,24 @@ public final class RPCClient: Sendable {
     private let httpClient: HTTPClient
     private let endpoint: URL
     private let timeout: TimeAmount
+    private let ownsHTTPClient: Bool
 
-    public init(endpoint: URL, httpClient: HTTPClient, timeout: TimeAmount = .seconds(30)) {
+    public init(endpoint: URL, httpClient: HTTPClient? = nil, timeout: TimeAmount = .seconds(30)) {
+        if let httpClient {
+            self.httpClient = httpClient
+            self.ownsHTTPClient = false
+        } else {
+            self.httpClient = HTTPClient(eventLoopGroupProvider: .singleton)
+            self.ownsHTTPClient = true
+        }
         self.endpoint = endpoint
-        self.httpClient = httpClient
         self.timeout = timeout
+    }
+
+    deinit {
+        if ownsHTTPClient {
+            try? httpClient.syncShutdown()
+        }
     }
 
     public func send<R: Decodable>(_ method: String, params: Encodable) async throws -> R {
