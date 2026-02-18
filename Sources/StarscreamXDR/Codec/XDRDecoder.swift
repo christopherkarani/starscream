@@ -18,7 +18,7 @@ public struct XDRDecoder: ~Copyable {
         self.cursor = 0
     }
 
-    public static func decode<T: XDRCodable>(_ type: T.Type = T.self, from data: Data) throws -> T {
+    public static func decodeValue<T: XDRCodable>(_ type: T.Type = T.self, from data: Data) throws -> T {
         var decoder = XDRDecoder(data: data)
         let value = try T(from: &decoder)
         if decoder.cursor != data.count {
@@ -110,6 +110,10 @@ public struct XDRDecoder: ~Copyable {
         }
         let array: [T] = try decode()
         return array
+    }
+
+    public mutating func decodeX<T: XDRCodable>(_ type: T.Type = T.self) throws -> T {
+        try T(from: &self)
     }
 
     private mutating func readBytes(count: Int) throws -> Data {

@@ -35,7 +35,7 @@ import Foundation
         }
 
         init(from decoder: inout XDRDecoder) throws {
-            self.values = try decoder.decode()
+            self.values = try decoder.decodeX([Int32].self)
         }
     }
 
@@ -51,7 +51,7 @@ import Foundation
         }
 
         init(from decoder: inout XDRDecoder) throws {
-            self.value = try decoder.decode()
+            self.value = try decoder.decodeX(Int32?.self)
         }
     }
 
@@ -67,7 +67,7 @@ import Foundation
         }
 
         init(from decoder: inout XDRDecoder) throws {
-            self.value = try decoder.decode()
+            self.value = try decoder.decodeX([Int32]?.self)
         }
     }
 
@@ -116,4 +116,31 @@ private func assertRoundTrip<T: XDRCodable & Equatable>(_ value: T) throws {
     } catch {
         #expect(Bool(true))
     }
+}
+
+@Test func xdr_phase2_stellar128_roundTrip() throws {
+    try assertRoundTrip(StellarUInt128(hi: 7, lo: 9))
+    try assertRoundTrip(StellarInt128(hi: -1, lo: 42))
+}
+
+@Test func xdr_phase2_scval_roundTrip() throws {
+    try assertRoundTrip(ScVal.u32(123))
+    try assertRoundTrip(ScVal.string("hello"))
+}
+
+@Test func xdr_phase2_transaction_roundTrip() throws {
+    let accountBytes = Data(repeating: 0x11, count: 32)
+    let tx = Transaction(
+        sourceAccount: .ed25519(accountBytes),
+        fee: 100,
+        seqNum: 1,
+        cond: .none,
+        memo: .none,
+        operations: [
+            Operation(sourceAccount: nil, body: .restoreFootprint(RestoreFootprintOp(ext: ExtensionPoint())))
+        ],
+        ext: .v0
+    )
+
+    try assertRoundTrip(tx)
 }

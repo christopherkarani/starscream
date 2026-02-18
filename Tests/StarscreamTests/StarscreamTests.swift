@@ -89,3 +89,24 @@ import StarscreamXDR
     let signature = try keyPair.sign(payload)
     #expect(keyPair.publicKey.verify(signature: signature, for: payload))
 }
+
+@Test func crypto_phase2_signTransactionProducesDecoratedSignature() throws {
+    let seedBytes = Data((1...32).map(UInt8.init))
+    let keyPair = try KeyPair(secretSeed: StrKey.encode(seedBytes, version: .ed25519SecretSeed))
+
+    let tx = Transaction(
+        sourceAccount: .ed25519(keyPair.publicKey.rawBytes),
+        fee: 100,
+        seqNum: 1,
+        cond: .none,
+        memo: .none,
+        operations: [],
+        ext: .v0
+    )
+
+    let passphrase = "Test SDF Network ; September 2015"
+    let decorated = try keyPair.signTransaction(tx, networkPassphrase: passphrase)
+    #expect(decorated.hint.count == 4)
+    #expect(decorated.signature.count == 64)
+    #expect(decorated.hint == keyPair.publicKey.rawBytes.suffix(4))
+}

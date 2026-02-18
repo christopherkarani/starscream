@@ -141,3 +141,23 @@ extension String: XDRCodable {
     public func encode(to encoder: inout XDREncoder) throws { encoder.encode(self) }
     public init(from decoder: inout XDRDecoder) throws { self = try decoder.decode() }
 }
+
+extension Array: XDRCodable where Element: XDRCodable {
+    public func encode(to encoder: inout XDREncoder) throws {
+        try encoder.encode(self)
+    }
+
+    public init(from decoder: inout XDRDecoder) throws {
+        self = try decoder.decode()
+    }
+}
+
+extension Optional: XDRCodable where Wrapped: XDRCodable {
+    public func encode(to encoder: inout XDREncoder) throws {
+        try encoder.encode(self)
+    }
+
+    public init(from decoder: inout XDRDecoder) throws {
+        self = try decoder.decode()
+    }
+}

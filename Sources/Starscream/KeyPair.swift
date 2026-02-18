@@ -66,9 +66,17 @@ public struct KeyPair: Sendable {
         return try privateKey.signature(for: data)
     }
 
-    // TODO: Completed in Phase 2 when TransactionSignaturePayload is available.
     public func signTransaction(_ transaction: Transaction, networkPassphrase: String) throws -> DecoratedSignature {
-        fatalError("Requires TransactionSignaturePayload from Phase 2")
+        let networkID = Data(SHA256.hash(data: Data(networkPassphrase.utf8)))
+        let payload = TransactionSignaturePayload(
+            networkId: networkID,
+            taggedTransaction: .v1(transaction)
+        )
+        let payloadXDR = try payload.toXDR()
+        let txHash = Data(SHA256.hash(data: payloadXDR))
+        let signature = try sign(txHash)
+        let hint = Data(publicKey.rawBytes.suffix(4))
+        return DecoratedSignature(hint: hint, signature: signature)
     }
 
     private init(publicKey: PublicKey, secretSeedBytes: Data) {
