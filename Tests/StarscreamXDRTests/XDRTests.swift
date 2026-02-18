@@ -94,6 +94,35 @@ private func assertRoundTrip<T: XDRCodable & Equatable>(_ value: T) throws {
     #expect(decoded == value)
 }
 
+private extension Data {
+    init(hexEncoded: String) throws {
+        let normalized = hexEncoded.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalized.count.isMultiple(of: 2) else {
+            throw XDRDecodingError.invalidLength(expected: normalized.count + 1, actual: normalized.count)
+        }
+
+        var bytes = Data()
+        bytes.reserveCapacity(normalized.count / 2)
+
+        var index = normalized.startIndex
+        while index < normalized.endIndex {
+            let next = normalized.index(index, offsetBy: 2)
+            let pair = normalized[index..<next]
+            guard let value = UInt8(pair, radix: 16) else {
+                throw XDRDecodingError.invalidLength(expected: 2, actual: pair.count)
+            }
+            bytes.append(value)
+            index = next
+        }
+
+        self = bytes
+    }
+
+    func hexEncodedString() -> String {
+        map { String(format: "%02x", $0) }.joined()
+    }
+}
+
 @Test func strkey_streamB_roundTripAllVersionBytes() throws {
     let testVectors: [(StrKey.VersionByte, Data)] = [
         (.ed25519PublicKey, Data((0..<32).map(UInt8.init))),
@@ -210,6 +239,43 @@ private func assertRoundTrip<T: XDRCodable & Equatable>(_ value: T) throws {
 
     let createAccount = OperationBody.createAccount(CreateAccountOp())
     try assertRoundTrip(createAccount)
+}
+
+@Test func xdr_phase5_knownJsSdkHexVectors() throws {
+    #expect(try Int32(42).toXDR().hexEncodedString() == "0000002a")
+    #expect(try UInt64(9).toXDR().hexEncodedString() == "0000000000000009")
+    #expect(try Bool(true).toXDR().hexEncodedString() == "00000001")
+    #expect(try Data([0x01, 0x02, 0x03]).toXDR().hexEncodedString() == "0000000301020300")
+    #expect(try String("ok").toXDR().hexEncodedString() == "000000026f6b0000")
+    #expect(try [UInt32(1), UInt32(2)].toXDR().hexEncodedString() == "000000020000000100000002")
+    #expect(try ScVal.u32(7).toXDR().hexEncodedString() == "0000000300000007")
+    #expect(
+        try ScVal.vec([.u32(1), .u32(2)]).toXDR().hexEncodedString()
+            == "00000010000000010000000200000003000000010000000300000002"
+    )
+
+    let tx = Transaction(
+        sourceAccount: .ed25519(Data(repeating: 0x11, count: 32)),
+        fee: 100,
+        seqNum: 1,
+        cond: .none,
+        memo: .none,
+        operations: [],
+        ext: .v0
+    )
+
+    let expectedTxHex =
+        "00000000" +
+        "1111111111111111111111111111111111111111111111111111111111111111" +
+        "00000064" +
+        "0000000000000001" +
+        "00000000" +
+        "00000000" +
+        "00000000" +
+        "00000000"
+    let encodedHex = try tx.toXDR().hexEncodedString()
+    #expect(encodedHex == expectedTxHex)
+    #expect(try Transaction(xdr: Data(hexEncoded: expectedTxHex)) == tx)
 }
 
 @Test func xdr_phase2_transaction_roundTrip() throws {

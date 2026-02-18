@@ -1,6 +1,6 @@
 import Foundation
 
-public enum StrKeyError: Error, Sendable, Equatable {
+public enum StrKeyError: Error, Sendable, Equatable, Hashable {
     case invalidBase32
     case invalidLength
     case checksumMismatch

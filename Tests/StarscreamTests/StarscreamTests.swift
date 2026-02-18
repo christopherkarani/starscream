@@ -90,6 +90,20 @@ import StarscreamXDR
     #expect(keyPair.publicKey.verify(signature: signature, for: payload))
 }
 
+@Test func crypto_phase5_secretSeedKnownVectors() throws {
+    let knownSeed = "SCOWDMM5576VUYF2QRFPJEXMFTCEISOFNF5TE2IZOA52YAY4VZ7WBQNO"
+    let knownAddress = "GDLVVGABQKYQVN6VJP7NHSLEA45A5YLS6PNKMIZFV4BBU2HXA5IRVHUR"
+    let expectedPublicRaw = try Data(hexEncoded: "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a")
+
+    let keyPair = try KeyPair(secretSeed: knownSeed)
+    #expect(keyPair.publicKey.stellarAddress == knownAddress)
+    #expect(keyPair.publicKey.rawBytes == expectedPublicRaw)
+
+    let message = Data("starscream-known-vector".utf8)
+    let signature = try keyPair.sign(message)
+    #expect(keyPair.publicKey.verify(signature: signature, for: message))
+}
+
 @Test func crypto_phase2_signTransactionProducesDecoratedSignature() throws {
     let seedBytes = Data((1...32).map(UInt8.init))
     let keyPair = try KeyPair(secretSeed: StrKey.encode(seedBytes, version: .ed25519SecretSeed))
@@ -249,4 +263,29 @@ import StarscreamXDR
 
     #expect(tx.seqNum == 42)
     #expect(tx.operations.count == 1)
+}
+
+private extension Data {
+    init(hexEncoded: String) throws {
+        let normalized = hexEncoded.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard normalized.count.isMultiple(of: 2) else {
+            throw StarscreamError.invalidFormat("Odd-length hex string")
+        }
+
+        var bytes = Data()
+        bytes.reserveCapacity(normalized.count / 2)
+
+        var index = normalized.startIndex
+        while index < normalized.endIndex {
+            let next = normalized.index(index, offsetBy: 2)
+            let pair = normalized[index..<next]
+            guard let value = UInt8(pair, radix: 16) else {
+                throw StarscreamError.invalidFormat("Invalid hex byte '\(pair)'")
+            }
+            bytes.append(value)
+            index = next
+        }
+
+        self = bytes
+    }
 }

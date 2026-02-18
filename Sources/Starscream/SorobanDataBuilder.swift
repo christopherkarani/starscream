@@ -1,7 +1,7 @@
 import Foundation
 import StarscreamXDR
 
-public struct SorobanDataBuilder: Sendable {
+public struct SorobanDataBuilder: Sendable, Hashable {
     private var readOnly: [LedgerKey]
     private var readWrite: [LedgerKey]
     private var instructions: UInt32

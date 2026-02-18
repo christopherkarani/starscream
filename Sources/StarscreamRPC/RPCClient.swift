@@ -2,7 +2,7 @@ import AsyncHTTPClient
 import Foundation
 import NIOCore
 
-public enum RPCClientError: Error, Sendable {
+public enum RPCClientError: Error, Sendable, Equatable, Hashable {
     case invalidStatus(Int)
     case missingResponseBody
     case malformedResponse

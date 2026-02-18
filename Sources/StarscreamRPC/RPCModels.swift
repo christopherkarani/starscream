@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Supporting Types
 
-public struct ResourceConfig: Codable, Sendable {
+public struct ResourceConfig: Codable, Sendable, Hashable {
     public let instructionLeeway: UInt32?
 
     public init(instructionLeeway: UInt32? = nil) {
@@ -10,7 +10,7 @@ public struct ResourceConfig: Codable, Sendable {
     }
 }
 
-public struct PaginationOptions: Codable, Sendable {
+public struct PaginationOptions: Codable, Sendable, Hashable {
     public let cursor: String?
     public let limit: Int?
 
@@ -20,7 +20,7 @@ public struct PaginationOptions: Codable, Sendable {
     }
 }
 
-public struct RestorePreamble: Codable, Sendable {
+public struct RestorePreamble: Codable, Sendable, Hashable {
     public let transactionData: String
     public let minResourceFee: Int64
 
@@ -30,7 +30,7 @@ public struct RestorePreamble: Codable, Sendable {
     }
 }
 
-public struct SimResult: Codable, Sendable {
+public struct SimResult: Codable, Sendable, Hashable {
     public let auth: [String]?
     public let xdr: String?
 
@@ -40,7 +40,7 @@ public struct SimResult: Codable, Sendable {
     }
 }
 
-public struct StateChange: Codable, Sendable {
+public struct StateChange: Codable, Sendable, Hashable {
     public let type: String
     public let key: String
     public let before: String?
@@ -54,7 +54,7 @@ public struct StateChange: Codable, Sendable {
     }
 }
 
-public struct EventInfo: Codable, Sendable {
+public struct EventInfo: Codable, Sendable, Hashable {
     public let type: String
     public let ledger: Int
     public let ledgerClosedAt: String?
@@ -91,7 +91,7 @@ public struct EventInfo: Codable, Sendable {
     }
 }
 
-public struct LedgerEntryResult: Codable, Sendable {
+public struct LedgerEntryResult: Codable, Sendable, Hashable {
     public let key: String
     public let xdr: String
     public let lastModifiedLedgerSeq: Int
@@ -105,7 +105,7 @@ public struct LedgerEntryResult: Codable, Sendable {
     }
 }
 
-public struct FeeDistribution: Codable, Sendable {
+public struct FeeDistribution: Codable, Sendable, Hashable {
     public let max: String
     public let min: String
     public let mode: String
@@ -164,7 +164,7 @@ public struct FeeDistribution: Codable, Sendable {
     public var modeFee: Int64? { Int64(mode) }
 }
 
-public struct SimulationCost: Codable, Sendable {
+public struct SimulationCost: Codable, Sendable, Hashable {
     public let cpuInsns: String
     public let memBytes: String
 
@@ -174,7 +174,7 @@ public struct SimulationCost: Codable, Sendable {
     }
 }
 
-public struct LedgerInfo: Codable, Sendable {
+public struct LedgerInfo: Codable, Sendable, Hashable {
     public let id: String?
     public let hash: String?
     public let sequence: Int?
@@ -199,7 +199,7 @@ public struct LedgerInfo: Codable, Sendable {
     }
 }
 
-public struct TransactionInfo: Codable, Sendable {
+public struct TransactionInfo: Codable, Sendable, Hashable {
     public let status: String
     public let txHash: String
     public let applicationOrder: Int?
@@ -235,7 +235,7 @@ public struct TransactionInfo: Codable, Sendable {
 
 // MARK: - Request Types
 
-public struct SimulateTransactionRequest: Codable, Sendable {
+public struct SimulateTransactionRequest: Codable, Sendable, Hashable {
     public let transaction: String
     public let resourceConfig: ResourceConfig?
 
@@ -245,7 +245,7 @@ public struct SimulateTransactionRequest: Codable, Sendable {
     }
 }
 
-public struct GetEventsRequest: Codable, Sendable {
+public struct GetEventsRequest: Codable, Sendable, Hashable {
     public let startLedger: Int?
     public let filters: [EventFilter]?
     public let pagination: PaginationOptions?
@@ -257,7 +257,7 @@ public struct GetEventsRequest: Codable, Sendable {
     }
 }
 
-public struct EventFilterTopic: Codable, Sendable {
+public struct EventFilterTopic: Codable, Sendable, Hashable {
     public let segments: [String]
 
     public init(segments: [String]) {
@@ -265,7 +265,7 @@ public struct EventFilterTopic: Codable, Sendable {
     }
 }
 
-public struct EventFilter: Codable, Sendable {
+public struct EventFilter: Codable, Sendable, Hashable {
     public let type: String?
     public let contractIds: [String]?
     public let topics: [[String]]?
@@ -277,7 +277,7 @@ public struct EventFilter: Codable, Sendable {
     }
 }
 
-public struct GetLedgerEntriesRequest: Codable, Sendable {
+public struct GetLedgerEntriesRequest: Codable, Sendable, Hashable {
     public let keys: [String]
 
     public init(keys: [String]) {
@@ -285,7 +285,7 @@ public struct GetLedgerEntriesRequest: Codable, Sendable {
     }
 }
 
-public struct SendTransactionRequest: Codable, Sendable {
+public struct SendTransactionRequest: Codable, Sendable, Hashable {
     public let transaction: String
 
     public init(transaction: String) {
@@ -293,7 +293,7 @@ public struct SendTransactionRequest: Codable, Sendable {
     }
 }
 
-public struct GetTransactionRequest: Codable, Sendable {
+public struct GetTransactionRequest: Codable, Sendable, Hashable {
     public let hash: String
 
     public init(hash: String) {
@@ -301,7 +301,7 @@ public struct GetTransactionRequest: Codable, Sendable {
     }
 }
 
-public struct GetTransactionsRequest: Codable, Sendable {
+public struct GetTransactionsRequest: Codable, Sendable, Hashable {
     public let startLedger: Int
     public let pagination: PaginationOptions?
 
@@ -311,7 +311,7 @@ public struct GetTransactionsRequest: Codable, Sendable {
     }
 }
 
-public struct GetLedgersRequest: Codable, Sendable {
+public struct GetLedgersRequest: Codable, Sendable, Hashable {
     public let startLedger: Int
     public let pagination: PaginationOptions?
 
@@ -321,13 +321,13 @@ public struct GetLedgersRequest: Codable, Sendable {
     }
 }
 
-public struct GetFeeStatsRequest: Codable, Sendable {
+public struct GetFeeStatsRequest: Codable, Sendable, Hashable {
     public init() {}
 }
 
 // MARK: - Response Types
 
-public struct GetHealthResponse: Codable, Sendable {
+public struct GetHealthResponse: Codable, Sendable, Hashable {
     public let status: String
 
     public init(status: String) {
@@ -335,7 +335,7 @@ public struct GetHealthResponse: Codable, Sendable {
     }
 }
 
-public struct GetNetworkResponse: Codable, Sendable {
+public struct GetNetworkResponse: Codable, Sendable, Hashable {
     public let friendbotUrl: String?
     public let passphrase: String
     public let protocolVersion: Int
@@ -347,7 +347,7 @@ public struct GetNetworkResponse: Codable, Sendable {
     }
 }
 
-public struct GetLatestLedgerResponse: Codable, Sendable {
+public struct GetLatestLedgerResponse: Codable, Sendable, Hashable {
     public let id: String
     public let protocolVersion: Int
     public let sequence: Int
@@ -359,7 +359,7 @@ public struct GetLatestLedgerResponse: Codable, Sendable {
     }
 }
 
-public struct GetLedgerEntriesResponse: Codable, Sendable {
+public struct GetLedgerEntriesResponse: Codable, Sendable, Hashable {
     public let entries: [LedgerEntryResult]?
     public let latestLedger: Int
 
@@ -369,7 +369,7 @@ public struct GetLedgerEntriesResponse: Codable, Sendable {
     }
 }
 
-public struct SendTransactionResponse: Codable, Sendable {
+public struct SendTransactionResponse: Codable, Sendable, Hashable {
     public let status: String
     public let hash: String
     public let latestLedger: Int
@@ -394,7 +394,7 @@ public struct SendTransactionResponse: Codable, Sendable {
     }
 }
 
-public struct GetTransactionResponse: Codable, Sendable {
+public struct GetTransactionResponse: Codable, Sendable, Hashable {
     public let status: String
     public let latestLedger: Int
     public let latestLedgerCloseTime: String?
@@ -440,7 +440,7 @@ public struct GetTransactionResponse: Codable, Sendable {
     }
 }
 
-public struct GetTransactionsResponse: Codable, Sendable {
+public struct GetTransactionsResponse: Codable, Sendable, Hashable {
     public let transactions: [TransactionInfo]
     public let latestLedger: Int
 
@@ -450,7 +450,7 @@ public struct GetTransactionsResponse: Codable, Sendable {
     }
 }
 
-public struct GetLedgersResponse: Codable, Sendable {
+public struct GetLedgersResponse: Codable, Sendable, Hashable {
     public let ledgers: [LedgerInfo]
     public let latestLedger: Int
 
@@ -460,7 +460,7 @@ public struct GetLedgersResponse: Codable, Sendable {
     }
 }
 
-public struct GetFeeStatsResponse: Codable, Sendable {
+public struct GetFeeStatsResponse: Codable, Sendable, Hashable {
     public let sorobanInclusionFee: FeeDistribution
     public let inclusionFee: FeeDistribution
     public let latestLedger: Int
@@ -472,7 +472,7 @@ public struct GetFeeStatsResponse: Codable, Sendable {
     }
 }
 
-public struct GetVersionInfoResponse: Codable, Sendable {
+public struct GetVersionInfoResponse: Codable, Sendable, Hashable {
     public let version: String
     public let commitHash: String
     public let buildTimestamp: String
@@ -494,7 +494,7 @@ public struct GetVersionInfoResponse: Codable, Sendable {
     }
 }
 
-public struct GetEventsResponse: Codable, Sendable {
+public struct GetEventsResponse: Codable, Sendable, Hashable {
     public let events: [EventInfo]
     public let latestLedger: Int
 
@@ -504,7 +504,7 @@ public struct GetEventsResponse: Codable, Sendable {
     }
 }
 
-public struct SimulateTransactionResponse: Codable, Sendable {
+public struct SimulateTransactionResponse: Codable, Sendable, Hashable {
     public let latestLedger: Int
     public let minResourceFee: String?
     public let results: [SimResult]?

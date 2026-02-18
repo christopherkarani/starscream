@@ -89,30 +89,100 @@ public struct ContractClientMacro: MemberMacro {
     private static func generateStruct(from spec: MinimalSCSpecUDTStructV0) -> DeclSyntax {
         let name = sanitizeTypeName(spec.name)
         let fields = spec.fields.map { field in
-            (name: escapeIdentifier(field.name), type: swiftType(for: field.type))
+            (
+                propertyName: escapeIdentifier(field.name),
+                fieldKey: field.name,
+                type: swiftType(for: field.type),
+                isOptional: isOptionalType(field.type)
+            )
         }
 
         let fieldDecls = fields
-            .map { "    public let \($0.name): \($0.type)" }
+            .map { "    public let \($0.propertyName): \($0.type)" }
             .joined(separator: "\n")
 
         if fields.isEmpty {
             return DeclSyntax(stringLiteral: """
-            public struct \(name): Sendable, Hashable {
+            public struct \(name): ScValConvertible, Sendable, Hashable {
                 public init() {}
+
+                public init(fromScVal scVal: ScVal) throws {
+                    guard case .map = scVal else {
+                        throw StarscreamError.resultDecodingFailed(expectedType: "\(name)", actualValue: scVal)
+                    }
+                }
+
+                public func toScVal() throws -> ScVal {
+                    .map([])
+                }
             }
             """)
         }
 
-        let params = fields.map { "\($0.name): \($0.type)" }.joined(separator: ", ")
-        let assignments = fields.map { "        self.\($0.name) = \($0.name)" }.joined(separator: "\n")
+        let params = fields.map { "\($0.propertyName): \($0.type)" }.joined(separator: ", ")
+        let assignments = fields.map { "        self.\($0.propertyName) = \($0.propertyName)" }.joined(separator: "\n")
+
+        let decodeAssignments = fields.map { field in
+            let literalKey = escapedStringLiteral(field.fieldKey)
+            let valueName = "\(sanitizeIdentifier(field.fieldKey))Value"
+            let typeName = field.type
+
+            if field.isOptional {
+                return """
+                        let \(valueName) = lookup("\(literalKey)") ?? .void
+                        self.\(field.propertyName) = try \(typeName)(fromScVal: \(valueName))
+                """
+            }
+
+            return """
+                    guard let \(valueName) = lookup("\(literalKey)") else {
+                        throw StarscreamError.invalidFormat("Missing field '\(literalKey)' for \(name)")
+                    }
+                    self.\(field.propertyName) = try \(typeName)(fromScVal: \(valueName))
+            """
+        }.joined(separator: "\n")
+
+        let mapEntries = fields.map { field in
+            let literalKey = escapedStringLiteral(field.fieldKey)
+            return "SCMapEntry(key: .symbol(\"\(literalKey)\"), val: try self.\(field.propertyName).toScVal())"
+        }.joined(separator: ",\n")
+        let indentedMapEntries = indentLines(mapEntries, spaces: 8)
 
         return DeclSyntax(stringLiteral: """
-        public struct \(name): Sendable, Hashable {
+        public struct \(name): ScValConvertible, Sendable, Hashable {
         \(fieldDecls)
 
             public init(\(params)) {
         \(assignments)
+            }
+
+            public init(fromScVal scVal: ScVal) throws {
+                guard case .map(let entries) = scVal else {
+                    throw StarscreamError.resultDecodingFailed(expectedType: "\(name)", actualValue: scVal)
+                }
+
+                let mapEntries = entries ?? []
+                func lookup(_ key: String) -> ScVal? {
+                    for entry in mapEntries {
+                        switch entry.key {
+                        case .symbol(let symbol) where symbol == key:
+                            return entry.val
+                        case .string(let string) where string == key:
+                            return entry.val
+                        default:
+                            continue
+                        }
+                    }
+                    return nil
+                }
+
+        \(decodeAssignments)
+            }
+
+            public func toScVal() throws -> ScVal {
+                .map([
+        \(indentedMapEntries)
+                ])
             }
         }
         """)
@@ -242,6 +312,27 @@ public struct ContractClientMacro: MemberMacro {
             value = "_\(value)"
         }
         return value
+    }
+
+    private static func isOptionalType(_ type: MinimalSCSpecTypeDef) -> Bool {
+        if case .option = type {
+            return true
+        }
+        return false
+    }
+
+    private static func escapedStringLiteral(_ raw: String) -> String {
+        raw
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+
+    private static func indentLines(_ text: String, spaces: Int) -> String {
+        let prefix = String(repeating: " ", count: spaces)
+        return text
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map { "\(prefix)\($0)" }
+            .joined(separator: "\n")
     }
 
     private static let swiftKeywords: Set<String> = [

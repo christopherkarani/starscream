@@ -1,6 +1,6 @@
 import Foundation
 
-public enum XDRDecodingError: Error, Sendable, Equatable {
+public enum XDRDecodingError: Error, Sendable, Equatable, Hashable {
     case insufficientData(expected: Int, available: Int)
     case invalidDiscriminant(type: String, value: Int32)
     case invalidLength(expected: Int, actual: Int)

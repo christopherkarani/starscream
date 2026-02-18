@@ -78,11 +78,43 @@ final class MacroTests: XCTestCase {
                 let server: SorobanServer
                 let network: Network
 
-                public struct Meta: Sendable, Hashable {
+                public struct Meta: ScValConvertible, Sendable, Hashable {
                     public let decimals: UInt32
 
                     public init(decimals: UInt32) {
                         self.decimals = decimals
+                    }
+
+                    public init(fromScVal scVal: ScVal) throws {
+                        guard case .map(let entries) = scVal else {
+                            throw StarscreamError.resultDecodingFailed(expectedType: "Meta", actualValue: scVal)
+                        }
+
+                        let mapEntries = entries ?? []
+                        func lookup(_ key: String) -> ScVal? {
+                            for entry in mapEntries {
+                                switch entry.key {
+                                case .symbol(let symbol) where symbol == key:
+                                    return entry.val
+                                case .string(let string) where string == key:
+                                    return entry.val
+                                default:
+                                    continue
+                                }
+                            }
+                            return nil
+                        }
+
+                        guard let decimalsValue = lookup("decimals") else {
+                            throw StarscreamError.invalidFormat("Missing field 'decimals' for Meta")
+                        }
+                        self.decimals = try UInt32(fromScVal: decimalsValue)
+                    }
+
+                    public func toScVal() throws -> ScVal {
+                        .map([
+                        SCMapEntry(key: .symbol("decimals"), val: try self.decimals.toScVal())
+                        ])
                     }
                 }
 
@@ -146,11 +178,43 @@ final class MacroTests: XCTestCase {
                     return try await self.server.prepareTransaction(function, source: source, network: self.network, options: options)
                 }
 
-                public struct Meta: Sendable, Hashable {
+                public struct Meta: ScValConvertible, Sendable, Hashable {
                     public let decimals: UInt32
 
                     public init(decimals: UInt32) {
                         self.decimals = decimals
+                    }
+
+                    public init(fromScVal scVal: ScVal) throws {
+                        guard case .map(let entries) = scVal else {
+                            throw StarscreamError.resultDecodingFailed(expectedType: "Meta", actualValue: scVal)
+                        }
+
+                        let mapEntries = entries ?? []
+                        func lookup(_ key: String) -> ScVal? {
+                            for entry in mapEntries {
+                                switch entry.key {
+                                case .symbol(let symbol) where symbol == key:
+                                    return entry.val
+                                case .string(let string) where string == key:
+                                    return entry.val
+                                default:
+                                    continue
+                                }
+                            }
+                            return nil
+                        }
+
+                        guard let decimalsValue = lookup("decimals") else {
+                            throw StarscreamError.invalidFormat("Missing field 'decimals' for Meta")
+                        }
+                        self.decimals = try UInt32(fromScVal: decimalsValue)
+                    }
+
+                    public func toScVal() throws -> ScVal {
+                        .map([
+                        SCMapEntry(key: .symbol("decimals"), val: try self.decimals.toScVal())
+                        ])
                     }
                 }
 

@@ -2,7 +2,7 @@ import Foundation
 import StarscreamRPC
 import StarscreamXDR
 
-public struct AssembledTransaction<T>: Sendable {
+public struct AssembledTransaction<T>: Sendable, Hashable {
     public let transaction: Transaction
     public let simulationResult: SimulateTransactionResponse
     public let network: Network

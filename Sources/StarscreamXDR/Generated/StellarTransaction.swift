@@ -498,7 +498,9 @@ public struct SorobanAuthorizedInvocation: XDRCodable, Sendable, Hashable {
 public struct SorobanAddressCredentials: XDRCodable, Sendable, Hashable {
     public let address: SCAddress
     public let nonce: Int64
+    // Mutable so authorizeEntry can set an updated expiration ledger before signing.
     public var signatureExpirationLedger: UInt32
+    // Mutable so authorizeEntry can inject the final signature payload.
     public var signature: ScVal
 
     public init(address: SCAddress, nonce: Int64, signatureExpirationLedger: UInt32, signature: ScVal) {
@@ -569,6 +571,7 @@ public struct SorobanAuthorizationEntry: XDRCodable, Sendable, Hashable {
 
 public struct InvokeHostFunctionOp: XDRCodable, Sendable, Hashable {
     public let hostFunction: HostFunction
+    // Mutable because simulation returns auth entries after the function is built.
     public var auth: [SorobanAuthorizationEntry]
 
     public init(hostFunction: HostFunction, auth: [SorobanAuthorizationEntry]) {
@@ -812,6 +815,7 @@ public enum OperationBody: XDRCodable, Sendable, Hashable {
 
 public struct Operation: XDRCodable, Sendable, Hashable {
     public let sourceAccount: MuxedAccount?
+    // Mutable so assembly can replace invokeHostFunction bodies with populated auth.
     public var body: OperationBody
 
     public init(sourceAccount: MuxedAccount? = nil, body: OperationBody) {
@@ -856,11 +860,14 @@ public enum TransactionExtension: XDRCodable, Sendable, Hashable {
 
 public struct Transaction: XDRCodable, Sendable, Hashable {
     public let sourceAccount: MuxedAccount
+    // Mutable so assembleTransaction can add Soroban resource fees to the base fee.
     public var fee: UInt32
     public let seqNum: Int64
     public let cond: Preconditions
     public let memo: Memo
+    // Mutable so assembled auth entries can be merged into operation payloads.
     public var operations: [Operation]
+    // Mutable so assembly can switch ext from v0 to v1(SorobanTransactionData).
     public var ext: TransactionExtension
 
     public init(
@@ -924,6 +931,7 @@ public struct DecoratedSignature: XDRCodable, Sendable, Hashable {
 
 public struct TransactionV1Envelope: XDRCodable, Sendable, Hashable {
     public let tx: Transaction
+    // Mutable so additional signatures can be appended during multi-sign workflows.
     public var signatures: [DecoratedSignature]
 
     public init(tx: Transaction, signatures: [DecoratedSignature]) {

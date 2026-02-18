@@ -2,7 +2,7 @@ import Crypto
 import Foundation
 import StarscreamXDR
 
-public enum KeyPairError: Error, Sendable, Equatable {
+public enum KeyPairError: Error, Sendable, Equatable, Hashable {
     case invalidKeyLength(expected: Int, actual: Int)
     case invalidStrKeyVersion
 }
@@ -37,7 +37,7 @@ public struct PublicKey: Sendable, Hashable {
     }
 }
 
-public struct KeyPair: Sendable {
+public struct KeyPair: Sendable, Hashable {
     public let publicKey: PublicKey
     private let secretSeedBytes: Data
 

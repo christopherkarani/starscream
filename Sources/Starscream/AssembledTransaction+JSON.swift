@@ -2,7 +2,7 @@ import Foundation
 import StarscreamRPC
 import StarscreamXDR
 
-public struct AssembledTransactionJSON: Codable, Sendable {
+public struct AssembledTransactionJSON: Codable, Sendable, Hashable {
     public let xdr: String
     public let simulationResult: SimulateTransactionResponse
     public let signatures: [String]
