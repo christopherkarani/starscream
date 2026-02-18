@@ -405,6 +405,7 @@ public struct GetTransactionResponse: Codable, Sendable {
     public let envelopeXdr: String?
     public let resultXdr: String?
     public let resultMetaXdr: String?
+    public let returnValue: String?
     public let ledger: Int?
     public let createdAt: String?
 
@@ -419,6 +420,7 @@ public struct GetTransactionResponse: Codable, Sendable {
         envelopeXdr: String? = nil,
         resultXdr: String? = nil,
         resultMetaXdr: String? = nil,
+        returnValue: String? = nil,
         ledger: Int? = nil,
         createdAt: String? = nil
     ) {
@@ -432,6 +434,7 @@ public struct GetTransactionResponse: Codable, Sendable {
         self.envelopeXdr = envelopeXdr
         self.resultXdr = resultXdr
         self.resultMetaXdr = resultMetaXdr
+        self.returnValue = returnValue
         self.ledger = ledger
         self.createdAt = createdAt
     }

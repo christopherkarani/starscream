@@ -110,3 +110,91 @@ import StarscreamXDR
     #expect(decorated.signature.count == 64)
     #expect(decorated.hint == keyPair.publicKey.rawBytes.suffix(4))
 }
+
+@Test func phase3_supportingTypes_defaultsAndPassphrases() throws {
+    #expect(Network.public.passphrase == "Public Global Stellar Network ; September 2015")
+    #expect(Network.testnet.passphrase == "Test SDF Network ; September 2015")
+    #expect(Network.futurenet.passphrase == "Test SDF Future Network ; October 2022")
+    #expect(Network.custom(passphrase: "custom").passphrase == "custom")
+
+    var account = Account(publicKey: "GABC", sequenceNumber: 5)
+    account.incrementSequenceNumber()
+    #expect(account.sequenceNumber == 6)
+
+    let defaults = TransactionOptions.default
+    #expect(defaults.fee == 100)
+    #expect(defaults.autoRestore)
+    #expect(defaults.timeoutSeconds == 30)
+    #expect(defaults.memo == .none)
+}
+
+@Test func phase3_assembleTransaction_addsResourceFeeAndInjectsSimData() throws {
+    let contractHash = Data(repeating: 0xAB, count: 32)
+    let invoke = InvokeHostFunctionOp(
+        hostFunction: .invokeContract(
+            InvokeContractArgs(
+                contractAddress: .contract(contractHash),
+                functionName: "inc",
+                args: []
+            )
+        ),
+        auth: []
+    )
+
+    let original = Transaction(
+        sourceAccount: .ed25519(Data(repeating: 0x11, count: 32)),
+        fee: 100,
+        seqNum: 7,
+        cond: .none,
+        memo: .none,
+        operations: [Operation(sourceAccount: nil, body: .invokeHostFunction(invoke))],
+        ext: .v0
+    )
+
+    let txData = SorobanTransactionData(
+        ext: ExtensionPoint(),
+        resources: SorobanResources(
+            footprint: LedgerFootprint(readOnly: [], readWrite: []),
+            instructions: 1,
+            readBytes: 2,
+            writeBytes: 3
+        ),
+        resourceFee: 99
+    )
+
+    let authEntry = SorobanAuthorizationEntry(
+        credentials: .sourceAccount,
+        rootInvocation: SorobanAuthorizedInvocation(
+            function: .contractFn(
+                InvokeContractArgs(
+                    contractAddress: .contract(contractHash),
+                    functionName: "inc",
+                    args: []
+                )
+            ),
+            subInvocations: []
+        )
+    )
+
+    let simulation = SimulateTransactionResponse(
+        latestLedger: 100,
+        minResourceFee: "200",
+        results: [SimResult(auth: [try authEntry.toXDR().base64EncodedString()], xdr: nil)],
+        transactionData: try txData.toXDR().base64EncodedString()
+    )
+
+    let assembled = try assembleTransaction(original, simulation)
+    #expect(assembled.fee == 300)
+
+    if case .v1 = assembled.ext {
+        #expect(Bool(true))
+    } else {
+        #expect(Bool(false), "Expected ext to be .v1 after assembly")
+    }
+
+    guard case .invokeHostFunction(let opBody) = assembled.operations[0].body else {
+        Issue.record("Expected invokeHostFunction operation")
+        return
+    }
+    #expect(opBody.auth.count == 1)
+}
