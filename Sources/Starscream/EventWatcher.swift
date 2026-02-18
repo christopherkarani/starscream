@@ -1,0 +1,2 @@
+// EventWatcher.swift
+// Starscream SDK

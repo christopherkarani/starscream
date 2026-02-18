@@ -1,0 +1,2 @@
+// Errors.swift
+// Starscream SDK

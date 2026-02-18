@@ -1,0 +1,2 @@
+// Account.swift
+// Starscream SDK

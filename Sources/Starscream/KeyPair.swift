@@ -1,0 +1,2 @@
+// KeyPair.swift
+// Starscream SDK

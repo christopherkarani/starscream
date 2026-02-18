@@ -1,0 +1,2 @@
+// AssembledTransaction.swift
+// Starscream SDK

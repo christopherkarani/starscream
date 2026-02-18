@@ -1,0 +1,2 @@
+// SentTransaction.swift
+// Starscream SDK

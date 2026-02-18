@@ -1,0 +1,2 @@
+// AuthorizeEntry.swift
+// Starscream SDK

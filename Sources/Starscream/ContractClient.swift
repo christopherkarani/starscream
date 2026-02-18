@@ -1,0 +1,2 @@
+// ContractClient.swift
+// Starscream SDK
