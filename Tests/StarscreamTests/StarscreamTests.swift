@@ -198,3 +198,55 @@ import StarscreamXDR
     }
     #expect(opBody.auth.count == 1)
 }
+
+@Test func phase4_scValConvertible_roundTripsCommonTypes() throws {
+    let boolScVal = try true.toScVal()
+    #expect(try Bool(fromScVal: boolScVal))
+
+    let intScVal = try Int64(42).toScVal()
+    #expect(try Int64(fromScVal: intScVal) == 42)
+
+    let stringScVal = try "starscream".toScVal()
+    #expect(try String(fromScVal: stringScVal) == "starscream")
+
+    let arrayScVal = try [UInt32(1), UInt32(2), UInt32(3)].toScVal()
+    #expect(try [UInt32](fromScVal: arrayScVal) == [1, 2, 3])
+
+    let dictScVal = try (["a": UInt32(1), "b": UInt32(2)] as [String: UInt32]).toScVal()
+    let decodedDict = try [String: UInt32](fromScVal: dictScVal)
+    #expect(decodedDict["a"] == 1)
+    #expect(decodedDict["b"] == 2)
+
+    let optionalSome = try Optional<Int32>.some(9).toScVal()
+    #expect(try Optional<Int32>(fromScVal: optionalSome) == 9)
+
+    let optionalNone = try Optional<Int32>.none.toScVal()
+    #expect(try Optional<Int32>(fromScVal: optionalNone) == nil)
+}
+
+@Test func phase4_dsl_buildsHostFunctionAndTransaction() throws {
+    let contractId = StrKey.encode(Data(repeating: 0x22, count: 32), version: .contract)
+    let call = invokeContract(contractId, function: "hello") {
+        UInt32(7)
+        "world"
+    }
+
+    guard case .invokeContract(let args) = call else {
+        Issue.record("Expected invokeContract host function")
+        return
+    }
+    #expect(args.functionName == "hello")
+    #expect(args.args.count == 2)
+
+    let account = Account(
+        publicKey: StrKey.encode(Data(repeating: 0x11, count: 32), version: .ed25519PublicKey),
+        sequenceNumber: 41
+    )
+
+    let tx = try TransactionBuilder.build(source: account, network: .testnet, fee: 100) {
+        Operation(sourceAccount: nil, body: .invokeHostFunction(InvokeHostFunctionOp(hostFunction: call, auth: [])))
+    }
+
+    #expect(tx.seqNum == 42)
+    #expect(tx.operations.count == 1)
+}
