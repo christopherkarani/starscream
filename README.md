@@ -1,14 +1,21 @@
 # Starscream SDK
 
-Swift SDK for Stellar Soroban smart contracts.
+Starscream is a **conversion-first Swift SDK** for **Stellar Soroban**.
+
+If you are building Stellar tooling in Swift, this project is aimed at converting Stellar artifacts into typed Swift abstractions and converting Swift values back for on-chain use:
+
+- StrKey strings to and from raw key bytes
+- XDR bytes to and from model objects
+- RPC JSON payloads to strongly typed responses
+- SCSpec function/type metadata into Swift client APIs
 
 ## Quickstart
 
-### Add Dependency
+### Add dependency
 
 ```swift
 // Package.swift
-.package(url: "https://github.com/your-org/starscream.git", from: "1.0.0")
+.package(url: "https://github.com/christopherkarani/starscream.git", from: "1.0.0")
 ```
 
 ```swift
@@ -18,19 +25,19 @@ Swift SDK for Stellar Soroban smart contracts.
 )
 ```
 
-### Basic Usage
+### Build, simulate, sign, and submit a transaction
 
 ```swift
 import Foundation
 import Starscream
 
-let server = SorobanServer(rpcURL: URL(string: "https://soroban-testnet.stellar.org")!)
-let source = "G..." // source account
-let contractId = "C..."
+let server = SorobanServer(endpoint: URL(string: "https://soroban-testnet.stellar.org")!)
+let source = "G..." // source account (StrKey)
+let contractId = "C..." // contract ID (StrKey)
 let keyPair = try KeyPair(secretSeed: "S...")
 
 let assembled: AssembledTransaction<Void> = try await server.prepareTransaction(
-    invokeContract(contractId, function: "increment") {
+    try invokeContract(contractId, function: "increment") {
         UInt32(1)
     },
     source: source,
@@ -38,12 +45,24 @@ let assembled: AssembledTransaction<Void> = try await server.prepareTransaction(
     options: .default
 )
 
-let signed = try assembled.signed(by: keyPair)
-let sent = try await signed.send(using: server)
+let sent = try await assembled
+    .signed(by: keyPair)
+    .send(using: server)
+
 try await sent.result() // Void for non-returning methods
 ```
 
-## End-to-End Example (Appendix E)
+For typed JSON-first result decoding, you can also decode directly to `Decodable`:
+
+```swift
+struct CounterState: Codable, Sendable {
+    let value: UInt32
+}
+
+let typed: CounterState = try await sent.result(as: CounterState.self)
+```
+
+### Contract client example (macro-generated)
 
 ```swift
 import Foundation
@@ -57,8 +76,9 @@ struct CounterClient {
 }
 
 func runCounterFlow() async throws {
-    let server = SorobanServer(rpcURL: URL(string: "https://soroban-testnet.stellar.org")!)
+    let server = SorobanServer(endpoint: URL(string: "https://soroban-testnet.stellar.org")!)
     let signer = try KeyPair(secretSeed: "S...")
+
     let client = CounterClient(
         contractId: "C...",
         server: server,
@@ -71,24 +91,31 @@ func runCounterFlow() async throws {
 }
 ```
 
-## Error Taxonomy (Appendix A)
+## Core conversion paths
 
-`StarscreamError` is the top-level SDK error:
+- `StrKey.encode(...)` / `StrKey.decode(...)`: convert Stellar key formats
+- `toXDR()` / `init(xdr:)`: convert between in-memory models and binary XDR
+- `ScValConvertible`: map between `ScVal` and Swift native types
+- `@ContractClient(spec:)`: convert contract spec metadata into typed client methods
 
-- RPC/network: `rpcError`, `networkError`, `timeout`, `accountNotFound`, `contractNotFound`, `friendbotNotAvailable`
-- XDR/crypto: `xdrError`, `cryptoError`
-- transaction flow: `simulationFailed`, `transactionFailed`, `restoreRequired`, `restoreFailed`, `notYetSimulated`, `needsMoreSignatures`
-- usage/state: `resultDecodingFailed`, `invalidState`, `invalidFormat`
+## Error handling
 
-See `/Users/chriskarani/starscream/Sources/Starscream/Errors.swift` for canonical definitions.
+All public failures are surfaced through `StarscreamError` (`rpcError`, `networkError`, `xdrError`, `cryptoError`, and transaction flow/state errors). See `Sources/Starscream/Errors.swift` for details.
 
-## StrKey Specification (Appendix B)
+## Migration notes
 
-Starscream follows SEP-0023 style StrKey encoding:
+- `invokeContract(...)` is now `throws`; update call sites to use `try`.
+- `SentTransaction` now honors `TransactionOptions.timeoutSeconds` and `pollIntervalMilliseconds`.
+- `AssembledTransaction.toJSON()` now persists full decorated signatures (`hint` + `signature`) for deterministic round-trip reconstruction.
+- `AssembledTransaction.fromJSON(...)` remains backward compatible with legacy JSON and supports strict signature-hint enforcement via `requireSignatureHints`.
+
+## StrKey specification
+
+Starscream implements SEP-0023-compatible StrKey encoding:
 
 1. Build payload: `[versionByte] + payloadBytes`
 2. Compute checksum: CRC16-XMODEM over payload (`poly=0x1021`, `init=0x0000`)
-3. Append checksum little-endian
+3. Append checksum (little-endian)
 4. Base32 encode (RFC 4648, uppercase, no `=` padding)
 
 Supported version bytes:
@@ -101,9 +128,9 @@ Supported version bytes:
 - `signedPayload` (`P...`)
 - `contract` (`C...`)
 
-Implementation: `/Users/chriskarani/starscream/Sources/StarscreamXDR/StrKey.swift`.
+Implementation: `Sources/StarscreamXDR/StrKey.swift`.
 
-## ScVal Mapping (Appendix C)
+## SC to Swift mapping
 
 | SCSpec type | Swift |
 |---|---|
@@ -117,20 +144,15 @@ Implementation: `/Users/chriskarani/starscream/Sources/StarscreamXDR/StrKey.swif
 | `STRING` / `SYMBOL` | `String` |
 | `ADDRESS` / `MUXED_ADDRESS` | `SCAddress` |
 | `OPTION<T>` | `T?` |
+| `RESULT<OK,ERR>` | `SorobanResult<OK, ERR>` |
 | `VEC<T>` | `[T]` |
-| `MAP<K,V>` | `[(K, V)]` |
+| `MAP<K,V>` | `SorobanMap<K, V>` |
 | `UDT(name)` | generated Swift type |
 
-Macro implementation: `/Users/chriskarani/starscream/Sources/StarscreamMacrosImpl/MacroImpl.swift`.
+Macro implementation: `Sources/StarscreamMacrosImpl/MacroImpl.swift`.
 
-## Threading Model (Appendix H)
+## Concurrency model
 
-- `SorobanServer` is an `actor` for RPC coordination and transaction lifecycle orchestration.
-- `EventWatcher` is an `actor` and publishes an `AsyncStream<Result<EventInfo, Error>>`.
-- Core XDR models are value types (`struct`/`enum`) and `Sendable`.
-- Mutable XDR fields are intentional for simulation→assembly/signing stages (for example `Transaction.fee`, `Operation.body`, `InvokeHostFunctionOp.auth`, `TransactionV1Envelope.signatures`).
-
-## Notes on `Void` Conversions
-
-Swift tuple protocol conformances are currently experimental, so direct `extension Void: ScValConvertible` is not production-safe.
-Starscream handles `Void` return values with `SentTransaction.result() where T == Void`, while `Optional<T>` maps through `.void` in `ScValConvertible`.
+- `SorobanServer` is an `actor` for orchestration and RPC coordination.
+- `EventWatcher` is an `actor` and publishes `AsyncStream<Result<EventInfo, Error>>`.
+- Core model types are value types (`struct`/`enum`) and `Sendable`.

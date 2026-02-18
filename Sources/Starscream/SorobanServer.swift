@@ -35,6 +35,11 @@ public actor SorobanServer {
         }
     }
 
+    public func close() async throws {
+        guard ownsHTTPClient else { return }
+        try await httpClient.shutdown()
+    }
+
     public func getAccount(_ id: String) async throws -> Account {
         do {
             let key = try PublicKey(strKey: id)
@@ -93,9 +98,15 @@ public actor SorobanServer {
             throw StarscreamError.friendbotNotAvailable
         }
 
-        let separator = friendbotURL.contains("?") ? "&" : "?"
-        let encodedAddress = address.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? address
-        let url = friendbotURL + separator + "addr=\(encodedAddress)"
+        guard var components = URLComponents(string: friendbotURL) else {
+            throw StarscreamError.invalidFormat("friendbotUrl is not a valid URL")
+        }
+        var queryItems = components.queryItems ?? []
+        queryItems.append(URLQueryItem(name: "addr", value: address))
+        components.queryItems = queryItems
+        guard let url = components.url?.absoluteString else {
+            throw StarscreamError.invalidFormat("friendbotUrl could not be encoded")
+        }
 
         var request = HTTPClientRequest(url: url)
         request.method = .GET
@@ -198,7 +209,9 @@ public actor SorobanServer {
         return AssembledTransaction<T>(
             transaction: assembledTransaction,
             simulationResult: simulation,
-            network: network
+            network: network,
+            timeoutSeconds: options.timeoutSeconds,
+            pollIntervalMilliseconds: options.pollIntervalMilliseconds
         )
     }
 
@@ -219,10 +232,8 @@ public actor SorobanServer {
         switch error {
         case .rpcError(let code, let message, let data):
             return .rpcError(RPCError(code: code, message: message, data: data))
-        case .malformedResponse:
+        case .malformedResponse, .missingResponseBody:
             return .invalidFormat("Malformed JSON-RPC response")
-        case .missingResponseBody:
-            return .invalidFormat("JSON-RPC response body is missing")
         case .invalidStatus(let statusCode):
             return .networkError(RPCClientError.invalidStatus(statusCode))
         }

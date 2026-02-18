@@ -7,6 +7,7 @@ public actor EventWatcher {
     private var cursor: String?
     private var isCancelled = false
     private let pollIntervalSeconds: TimeInterval
+    private var pollTask: Task<Void, Never>?
 
     public init(
         server: SorobanServer,
@@ -20,17 +21,26 @@ public actor EventWatcher {
 
     public func cancel() {
         isCancelled = true
+        cancelPollingTask()
+    }
+
+    public func resume() {
+        isCancelled = false
     }
 
     public func events(filters: [EventFilter] = []) -> AsyncStream<Result<EventInfo, Error>> {
         let (stream, continuation) = AsyncStream.makeStream(of: Result<EventInfo, Error>.self)
 
-        Task { [weak self] in
-            guard let self else {
-                continuation.finish()
-                return
-            }
+        cancelPollingTask()
+        let task = Task {
             await self.pollLoop(filters: filters, continuation: continuation)
+        }
+        pollTask = task
+
+        continuation.onTermination = { _ in
+            Task {
+                await self.cancelPollingTask()
+            }
         }
 
         return stream
@@ -40,6 +50,8 @@ public actor EventWatcher {
         filters: [EventFilter],
         continuation: AsyncStream<Result<EventInfo, Error>>.Continuation
     ) async {
+        defer { pollTask = nil }
+
         while !isCancelled && !Task.isCancelled {
             do {
                 let response = try await server.getEvents(
@@ -63,5 +75,10 @@ public actor EventWatcher {
         }
 
         continuation.finish()
+    }
+
+    private func cancelPollingTask() {
+        pollTask?.cancel()
+        pollTask = nil
     }
 }

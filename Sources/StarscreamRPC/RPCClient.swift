@@ -33,6 +33,11 @@ public final class RPCClient: Sendable {
         }
     }
 
+    public func close() async throws {
+        guard ownsHTTPClient else { return }
+        try await httpClient.shutdown()
+    }
+
     public func send<R: Decodable>(_ method: String, params: Encodable) async throws -> R {
         let payload = JSONRPCRequest(
             jsonrpc: "2.0",
