@@ -95,6 +95,83 @@ final class MacroTests: XCTestCase {
         )
     }
 
+    func testContractClientMacro_generatesErrorEnumMember() {
+        let spec = errorEnumSpecBase64()
+
+        assertMacroExpansion(
+            """
+            @ContractClient(spec: "\(spec)")
+            struct ExampleClient {
+                let contractId: String
+                let server: SorobanServer
+                let network: Network
+            }
+            """,
+            expandedSource: """
+            struct ExampleClient {
+                let contractId: String
+                let server: SorobanServer
+                let network: Network
+
+                public enum ContractErr: UInt32, Error, Sendable {
+                    case unauth = 7
+                }
+            }
+            """,
+            macros: macros
+        )
+    }
+
+    func testContractClientMacro_fullContractSpecGeneratesCompositeMembers() {
+        let spec = fullContractSpecBase64()
+
+        assertMacroExpansion(
+            """
+            @ContractClient(spec: "\(spec)")
+            struct ExampleClient {
+                let contractId: String
+                let server: SorobanServer
+                let network: Network
+            }
+            """,
+            expandedSource: """
+            struct ExampleClient {
+                let contractId: String
+                let server: SorobanServer
+                let network: Network
+
+                public func ping(source: String, options: TransactionOptions = .default) async throws -> AssembledTransaction<Void> {
+                    let function = invokeContract(self.contractId, function: "ping") {
+                    }
+                    return try await self.server.prepareTransaction(function, source: source, network: self.network, options: options)
+                }
+
+                public struct Meta: Sendable, Hashable {
+                    public let decimals: UInt32
+
+                    public init(decimals: UInt32) {
+                        self.decimals = decimals
+                    }
+                }
+
+                public enum State: UInt32, Sendable {
+                    case live = 1
+                }
+
+                public enum MaybeMeta: Sendable {
+                    case none(Void)
+                    case some(Meta)
+                }
+
+                public enum ContractErr: UInt32, Error, Sendable {
+                    case unauth = 7
+                }
+            }
+            """,
+            macros: macros
+        )
+    }
+
     private func singleFunctionSpecBase64(functionName: String) -> String {
         var data = Data()
         data.append(xdrUInt32(1)) // spec entry count
@@ -123,12 +200,81 @@ final class MacroTests: XCTestCase {
         return data.base64EncodedString()
     }
 
+    private func errorEnumSpecBase64() -> String {
+        var data = Data()
+        data.append(xdrUInt32(1))
+        data.append(errorEnumEntry(name: "ContractErr", caseName: "unauth", caseValue: 7))
+        return data.base64EncodedString()
+    }
+
+    private func fullContractSpecBase64() -> String {
+        var data = Data()
+        data.append(xdrUInt32(5))
+        data.append(functionEntry("ping"))
+        data.append(structEntry(name: "Meta", fieldName: "decimals", fieldTypeRaw: 4))
+        data.append(enumEntry(name: "State", caseName: "live", caseValue: 1))
+        data.append(unionEntry(name: "MaybeMeta", noneCase: "none", someCase: "some", someTypeRaw: 2000, someTypeUDT: "Meta"))
+        data.append(errorEnumEntry(name: "ContractErr", caseName: "unauth", caseValue: 7))
+        return data.base64EncodedString()
+    }
+
     private func functionEntry(_ functionName: String) -> Data {
         var data = Data()
         data.append(xdrInt32(0)) // SCSpecEntry.functionV0
         data.append(xdrString(functionName))
         data.append(xdrUInt32(0)) // inputs
         data.append(xdrUInt32(0)) // outputs
+        return data
+    }
+
+    private func structEntry(name: String, fieldName: String, fieldTypeRaw: Int32) -> Data {
+        var data = Data()
+        data.append(xdrInt32(1)) // SCSpecEntry.udtStructV0
+        data.append(xdrString(name))
+        data.append(xdrUInt32(1))
+        data.append(xdrString(fieldName))
+        data.append(xdrInt32(fieldTypeRaw))
+        return data
+    }
+
+    private func enumEntry(name: String, caseName: String, caseValue: UInt32) -> Data {
+        var data = Data()
+        data.append(xdrInt32(3)) // SCSpecEntry.udtEnumV0
+        data.append(xdrString(name))
+        data.append(xdrUInt32(1))
+        data.append(xdrString(caseName))
+        data.append(xdrUInt32(caseValue))
+        return data
+    }
+
+    private func unionEntry(
+        name: String,
+        noneCase: String,
+        someCase: String,
+        someTypeRaw: Int32,
+        someTypeUDT: String
+    ) -> Data {
+        var data = Data()
+        data.append(xdrInt32(2)) // SCSpecEntry.udtUnionV0
+        data.append(xdrString(name))
+        data.append(xdrUInt32(2))
+
+        data.append(xdrString(noneCase))
+        data.append(xdrInt32(2)) // void
+
+        data.append(xdrString(someCase))
+        data.append(xdrInt32(someTypeRaw))
+        data.append(xdrString(someTypeUDT))
+        return data
+    }
+
+    private func errorEnumEntry(name: String, caseName: String, caseValue: UInt32) -> Data {
+        var data = Data()
+        data.append(xdrInt32(4)) // SCSpecEntry.udtErrorEnumV0
+        data.append(xdrString(name))
+        data.append(xdrUInt32(1))
+        data.append(xdrString(caseName))
+        data.append(xdrUInt32(caseValue))
         return data
     }
 

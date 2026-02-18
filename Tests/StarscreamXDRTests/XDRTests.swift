@@ -149,6 +149,69 @@ private func assertRoundTrip<T: XDRCodable & Equatable>(_ value: T) throws {
     )
 }
 
+@Test func xdr_phase5_scValAllCasesRoundTrip() throws {
+    let hash = Data(repeating: 0xAB, count: 32)
+    let nonceKey = SCNonceKey(nonce: 99)
+    let values: [ScVal] = [
+        .bool(true),
+        .void,
+        .error(.auth(.invalidAction)),
+        .u32(1),
+        .i32(-2),
+        .u64(3),
+        .i64(-4),
+        .timepoint(5),
+        .duration(6),
+        .u128(.init(hi: 7, lo: 8)),
+        .i128(.init(hi: -9, lo: 10)),
+        .u256(Data(repeating: 0x01, count: 32)),
+        .i256(Data(repeating: 0x02, count: 32)),
+        .bytes(Data([1, 2, 3])),
+        .string("hello"),
+        .symbol("sym"),
+        .vec([.u32(42)]),
+        .map([SCMapEntry(key: .symbol("k"), val: .i32(5))]),
+        .address(.contract(hash)),
+        .contractInstance(.init(executable: .stellarAsset, storage: nil)),
+        .ledgerKeyContractInstance,
+        .ledgerKeyNonce(nonceKey),
+    ]
+
+    for value in values {
+        try assertRoundTrip(value)
+    }
+}
+
+@Test func xdr_phase5_sorobanTransactionData_roundTrip() throws {
+    let data = SorobanTransactionData(
+        ext: ExtensionPoint(),
+        resources: SorobanResources(
+            footprint: LedgerFootprint(
+                readOnly: [],
+                readWrite: [.contractCode(Data(repeating: 0xAA, count: 32))]
+            ),
+            instructions: 100,
+            readBytes: 200,
+            writeBytes: 300
+        ),
+        resourceFee: 400
+    )
+    try assertRoundTrip(data)
+}
+
+@Test func xdr_phase5_operationBody_roundTrip() throws {
+    let invoke = OperationBody.invokeHostFunction(
+        .init(
+            hostFunction: .uploadWasm(Data([0x00, 0x61, 0x73, 0x6D])),
+            auth: []
+        )
+    )
+    try assertRoundTrip(invoke)
+
+    let createAccount = OperationBody.createAccount(CreateAccountOp())
+    try assertRoundTrip(createAccount)
+}
+
 @Test func xdr_phase2_transaction_roundTrip() throws {
     let accountBytes = Data(repeating: 0x11, count: 32)
     let tx = Transaction(
